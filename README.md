@@ -1,4 +1,4 @@
-**Project Overview**
+**Overview**
 
 This is a single-page JavaScript application for managing study pod bookings at USIU-Africa library. Librarians can use this system to:
 

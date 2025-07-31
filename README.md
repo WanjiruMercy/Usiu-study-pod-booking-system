@@ -286,7 +286,7 @@ const hours = parseInt(time[0], 10);
 const minutes = parseInt(time[1], 10);
 
 **Empty Student List**
-This handles situations such as; **Empty input, only commas** and **only whitespace**
+This handles situations such as: **Empty input, only commas** and **only whitespace**
 
 // In validateBooking()
 if (studentIds.length === 0) {

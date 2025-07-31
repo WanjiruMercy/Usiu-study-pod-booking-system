@@ -269,7 +269,8 @@ function handleTableClick(e) {
   }
 }
 
-**Student ID Parsing: Converts to uppercase for consistency, and removes entires from malformed input**
+**Student ID Parsing:**
+Converts to **uppercase for consistency,** and **removes entires from malformed input**
 
 function parseStudentIds(inputString) {
   return inputString.split(',')
@@ -277,7 +278,7 @@ function parseStudentIds(inputString) {
     .filter(id => id !== ''); // Remove empty entries
 }
 
-**Time Validation**
+**Time Validation:**
 Handles cases such as: **Empty time, invalid format** and **times outside the standard 08:00-20:00 range**
 
 // In isWithinOperatingHours()
@@ -285,7 +286,7 @@ const time = timeString.split(':');
 const hours = parseInt(time[0], 10);
 const minutes = parseInt(time[1], 10);
 
-**Empty Student List**
+**Empty Student List:**
 This handles situations such as: **Empty input, only commas** and **only whitespace**
 
 // In validateBooking()

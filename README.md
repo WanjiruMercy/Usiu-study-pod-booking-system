@@ -4,13 +4,16 @@ Register new bookings in real-time
 Enforce university booking rules
 View operational insights
 Manage existing bookings
+
 **Features Implemented Include:**
+
 **Booking Form:**
 Dynamic pod selection dropdown populated from pods array
 Time input restricted to 1-hour blocks between 08:00-20:00
 Comma-separated student IDs input with automatic parsing
 Comprehensive validation with clear error messages
 **Bookings Table:**
+
 Real-time display of all bookings (initial + new)
 Each booking shows:Sequential number, pod ID, time slot, number of students, list of student IDs and the remove button
 Event delegation for remove functionality

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USIU Study Pod Booking System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-container {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #errors {
+            color: #e74c3c;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .insights {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .insight-item {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>USIU Study Pod Booking System</h1>
+    
+    <div class="form-container">
+        <h2>New Booking</h2>
+        <form id="bookingForm">
+            <div class="form-group">
+                <label for="podSelect">Study Pod:</label>
+                <select id="podSelect" required></select>
+            </div>
+            <div class="form-group">
+                <label for="timeInput">Time Slot:</label>
+                <input type="time" id="timeInput" min="08:00" max="19:00" step="3600" required>
+            </div>
+            <div class="form-group">
+                <label for="studentsInput">Student IDs (comma separated):</label>
+                <input type="text" id="studentsInput" placeholder="SIT-001,SIT-002" required>
+            </div>
+            <button type="submit">Book</button>
+            <div id="errors"></div>
+        </form>
+    </div>
+    
+    <h2>Current Bookings</h2>
+    <table id="bookingsTable">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Pod</th>
+                <th>Time</th>
+                <th># Students</th>
+                <th>Student IDs</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+    <div class="insights">
+        <h2>Daily Insights</h2>
+        <div class="insight-item"><strong>Total bookings today:</strong> <span id="totalBookings">0</span></div>
+        <div class="insight-item"><strong>Unique students served:</strong> <span id="uniqueStudents">0</span></div>
+        <div class="insight-item"><strong>Busiest hour:</strong> <span id="busiestHour">None</span></div>
+        <div class="insight-item"><strong>Pod fill rates:</strong> <span id="fillRates"></span></div>
+        <div class="insight-item"><strong>Rejected duplicate attempts:</strong> <span id="duplicateAttempts">0</span></div>
+    </div>
+
+    <script>
+        /*
+         * USIU Study Pod Booking System
+         * 
+         * This application helps librarians manage study pod bookings with the following features:
+         * - Variables & Data Types: Used for storing pods, bookings, and temporary data (arrays, objects, strings, numbers)
+         * - Control Structures: if/else for validation, switch not used but could be for future extensions
+         * - Loops: for and while loops for rendering tables and calculating insights
+         * - Functions: Multiple single-purpose functions for validation, rendering, and calculations
+         * - Events: Form submission and delegated click events for remove buttons
+         * - DOM Manipulation: Dynamic creation of select options, table rows, and insight updates
+         */
+
+        // Seed data
+        const pods = [
+            { id: "POD-A", capacity: 4 },
+            { id: "POD-B", capacity: 4 },
+            { id: "POD-C", capacity: 4 }
+        ];
+
+        let bookings = [
+            { podId: "POD-A", time: "09:00", students: ["SIT-001", "SIT-045"] },
+            { podId: "POD-B", time: "10:00", students: ["SMC-210"] }
+        ];
+
+        let duplicateAttempts = 0;
+
+        // DOM elements
+        const podSelect = document.getElementById('podSelect');
+        const timeInput = document.getElementById('timeInput');
+        const studentsInput = document.getElementById('studentsInput');
+        const bookingForm = document.getElementById('bookingForm');
+        const errorsDiv = document.getElementById('errors');
+        const bookingsTable = document.getElementById('bookingsTable').querySelector('tbody');
+        const totalBookingsSpan = document.getElementById('totalBookings');
+        const uniqueStudentsSpan = document.getElementById('uniqueStudents');
+        const busiestHourSpan = document.getElementById('busiestHour');
+        const fillRatesSpan = document.getElementById('fillRates');
+        const duplicateAttemptsSpan = document.getElementById('duplicateAttempts');
+
+        // Initialize the application
+        function init() {
+            populatePodSelect();
+            renderBookingsTable();
+            recomputeInsights();
+            
+            bookingForm.addEventListener('submit', handleFormSubmit);
+            bookingsTable.addEventListener('click', handleTableClick);
+        }
+
+        // Populate pod select dropdown
+        function populatePodSelect() {
+            podSelect.innerHTML = '';
+            pods.forEach(pod => {
+                const option = document.createElement('option');
+                option.value = pod.id;
+                option.textContent = pod.id;
+                podSelect.appendChild(option);
+            });
+        }
+
+        // Handle form submission
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            clearErrors();
+            
+            const podId = podSelect.value;
+            const time = timeInput.value;
+            const studentIds = parseStudentIds(studentsInput.value);
+            
+            if (validateBooking(podId, time, studentIds)) {
+                addBooking(podId, time, studentIds);
+                renderBookingsTable();
+                recomputeInsights();
+                studentsInput.value = '';
+                studentsInput.focus();
+            }
+        }
+
+        // Parse student IDs from comma-separated string
+        function parseStudentIds(inputString) {
+            return inputString.split(',')
+                .map(id => id.trim().toUpperCase()) // Normalize to uppercase
+                .filter(id => id !== ''); // Remove empty entries
+        }
+
+        // Validate booking against all rules
+        function validateBooking(podId, time, studentIds) {
+            // Check operating hours (08:00-20:00, exclusive end)
+            if (!isWithinOperatingHours(time)) {
+                showError("Bookings are only allowed between 08:00 and 19:00");
+                return false;
+            }
+            
+            // Check empty student list
+            if (studentIds.length === 0) {
+                showError("Please enter at least one valid student ID");
+                return false;
+            }
+            
+            // Check capacity
+            const pod = pods.find(p => p.id === podId);
+            const existingBooking = findBooking(podId, time);
+            const totalStudents = existingBooking 
+                ? existingBooking.students.length + studentIds.length 
+                : studentIds.length;
+            
+            if (totalStudents > pod.capacity) {
+                showError(`This pod can only accommodate ${pod.capacity} students at this time`);
+                return false;
+            }
+            
+            // Check duplicate students in same pod
+            if (existingBooking) {
+                const duplicates = studentIds.filter(id => 
+                    existingBooking.students.includes(id)
+                );
+                if (duplicates.length > 0) {
+                    duplicateAttempts++;
+                    showError(`Students ${duplicates.join(', ')} already booked in this pod at this time`);
+                    return false;
+                }
+            }
+            
+            // Check cross-pod clashes
+            const clashStudents = [];
+            studentIds.forEach(id => {
+                if (hasCrossPodClash(id, time, podId)) {
+                    clashStudents.push(id);
+                }
+            });
+            
+            if (clashStudents.length > 0) {
+                duplicateAttempts++;
+                showError(`Students ${clashStudents.join(', ')} already booked in another pod at this time`);
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Check if time is within operating hours
+        function isWithinOperatingHours(timeString) {
+            // Using === for strict equality to prevent type coercion issues
+            const time = timeString.split(':');
+            const hours = parseInt(time[0], 10);
+            const minutes = parseInt(time[1], 10);
+            
+            // 08:00 (inclusive) to 20:00 (exclusive)
+            return (hours > 8 || (hours === 8 && minutes === 0)) && 
+                   (hours < 20);
+        }
+
+        // Find existing booking for a pod and time
+        function findBooking(podId, timeString) {
+            // Using === for strict equality comparison of IDs and times
+            return bookings.find(booking => 
+                booking.podId === podId && booking.time === timeString
+            );
+        }
+
+        // Check if student has booking in another pod at same time
+        function hasCrossPodClash(studentId, timeString, currentPodId) {
+            return bookings.some(booking => 
+                booking.time === timeString && 
+                booking.podId !== currentPodId && 
+                booking.students.includes(studentId)
+            );
+        }
+
+        // Add new booking or update existing one
+        function addBooking(podId, time, studentIds) {
+            const existingBooking = findBooking(podId, time);
+            
+            if (existingBooking) {
+                existingBooking.students.push(...studentIds);
+            } else {
+                bookings.push({
+                    podId,
+                    time,
+                    students: [...studentIds]
+                });
+            }
+        }
+
+        // Render bookings table
+        function renderBookingsTable() {
+            bookingsTable.innerHTML = '';
+            
+            for (let i = 0; i < bookings.length; i++) {
+                const booking = bookings[i];
+                const row = document.createElement('tr');
+                
+                // # column
+                const indexCell = document.createElement('td');
+                indexCell.textContent = i + 1;
+                row.appendChild(indexCell);
+                
+                // Pod column
+                const podCell = document.createElement('td');
+                podCell.textContent = booking.podId;
+                row.appendChild(podCell);
+                
+                // Time column
+                const timeCell = document.createElement('td');
+                timeCell.textContent = booking.time;
+                row.appendChild(timeCell);
+                
+                // # Students column
+                const countCell = document.createElement('td');
+                countCell.textContent = booking.students.length;
+                row.appendChild(countCell);
+                
+                // Student IDs column
+                const studentsCell = document.createElement('td');
+                studentsCell.textContent = booking.students.join(', ');
+                row.appendChild(studentsCell);
+                
+                // Actions column
+                const actionsCell = document.createElement('td');
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = 'Remove';
+                removeBtn.dataset.index = i;
+                actionsCell.appendChild(removeBtn);
+                row.appendChild(actionsCell);
+                
+                bookingsTable.appendChild(row);
+            }
+        }
+
+        // Handle table click events (event delegation)
+        function handleTableClick(e) {
+            if (e.target.tagName === 'BUTTON') {
+                const index = parseInt(e.target.dataset.index, 10);
+                bookings.splice(index, 1);
+                renderBookingsTable();
+                recomputeInsights();
+            }
+        }
+
+        // Recompute and display insights
+        function recomputeInsights() {
+            // Total bookings
+            totalBookingsSpan.textContent = bookings.length;
+            
+            // Unique students
+            const uniqueStudents = countUniqueStudents();
+            uniqueStudentsSpan.textContent = uniqueStudents;
+            
+            // Busiest hour
+            busiestHourSpan.textContent = findBusiestHour() || 'None';
+            
+            // Fill rates
+            fillRatesSpan.innerHTML = pods.map(pod => {
+                const rate = calculatePodFillRate(pod.id);
+                return `${pod.id}: ${rate}%`;
+            }).join(' | ');
+            
+            // Duplicate attempts
+            duplicateAttemptsSpan.textContent = duplicateAttempts;
+        }
+
+        // Count unique students (without using Set)
+        function countUniqueStudents() {
+            const allStudents = [];
+            bookings.forEach(booking => {
+                booking.students.forEach(student => {
+                    if (!allStudents.includes(student)) {
+                        allStudents.push(student);
+                    }
+                });
+            });
+            return allStudents.length;
+        }
+
+        // Find busiest hour (most students across all pods)
+        function findBusiestHour() {
+            const hourCounts = {};
+            
+            // Initialize counts for all possible hours
+            for (let hour = 8; hour < 20; hour++) {
+                hourCounts[`${hour.toString().padStart(2, '0')}:00`] = 0;
+            }
+            
+            // Count students per hour
+            bookings.forEach(booking => {
+                hourCounts[booking.time] += booking.students.length;
+            });
+            
+            // Find hour with max count
+            let maxHour = null;
+            let maxCount = 0;
+            
+            for (const hour in hourCounts) {
+                if (hourCounts[hour] > maxCount) {
+                    maxCount = hourCounts[hour];
+                    maxHour = hour;
+                }
+            }
+            
+            return maxCount > 0 ? `${maxHour} (${maxCount} students)` : null;
+        }
+
+        // Calculate fill rate for a pod
+        function calculatePodFillRate(podId) {
+            const pod = pods.find(p => p.id === podId);
+            const podBookings = bookings.filter(b => b.podId === podId);
+            
+            if (podBookings.length === 0) return 0;
+            
+            const totalBookedSeats = podBookings.reduce((sum, booking) => {
+                return sum + booking.students.length;
+            }, 0);
+            
+            const totalPossibleSeats = pod.capacity * podBookings.length;
+            const fillRate = (totalBookedSeats / totalPossibleSeats) * 100;
+            
+            return roundToOneDecimal(fillRate);
+        }
+
+        // Round to 1 decimal place
+        function roundToOneDecimal(num) {
+            return Math.round(num * 10) / 10;
+        }
+
+        // Show error message
+        function showError(message) {
+            errorsDiv.textContent = message;
+        }
+
+        // Clear error messages
+        function clearErrors() {
+            errorsDiv.textContent = '';
+        }
+
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
